@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Owner Panel - Add Matches</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f8f8f8; padding: 20px; }
+    .container { max-width: 400px; background: white; padding: 20px; border-radius: 8px; }
+    input, button { width: 100%; padding: 10px; margin: 5px 0; }
+    button { background: #28a745; color: white; border: none; cursor: pointer; }
+    button:hover { background: #218838; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Owner Panel</h2>
+    <input type="password" id="password" placeholder="Enter owner password">
+    <input type="text" id="title" placeholder="Match Title">
+    <input type="text" id="time" placeholder="Match Time">
+    <button onclick="addMatch()">Add Match</button>
+    <p id="status"></p>
+  </div>
+
+<script>
+const APP_ID = "08943DAB-53CC-453A-9E41-957BDCF9E5AC";
+const REST_KEY = "F5CBFC47-EC05-47A8-8C6A-09BB1E4A71B8";
+const OWNER_PASSWORD = "GARENAISBEST"; // Change if needed
+
+function addMatch() {
+    let password = document.getElementById('password').value;
+    if (password !== OWNER_PASSWORD) {
+        document.getElementById('status').innerText = "❌ Wrong password!";
+        return;
+    }
+    let title = document.getElementById('title').value;
+    let time = document.getElementById('time').value;
+
+    fetch(`https://api.backendless.com/${APP_ID}/${REST_KEY}/data/Matches`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title, time: time })
+    })
+    .then(res => {
+        if (res.ok) {
+            document.getElementById('status').innerText = "✅ Match added!";
+        } else {
+            document.getElementById('status').innerText = "❌ Failed to add match!";
+        }
+    })
+    .catch(err => {
+        document.getElementById('status').innerText = "❌ Error: " + err;
+    });
+}
+</script>
+</body>
+</html>
