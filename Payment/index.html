@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Upcoming Matches</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { --primary:#007bff; }
+    body { font-family: Arial, sans-serif; background:#f5f5f7; margin:0; }
+    h1 { text-align:center; background:var(--primary); color:#fff; padding:16px; margin:0; }
+    .list { max-width: 720px; margin: 16px auto; padding: 0 12px; }
+    .card { background:#fff; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,.08); margin:12px 0; overflow:hidden; }
+    .imgwrap { width:100%; height:180px; background:#eee; overflow:hidden; }
+    .imgwrap img { width:100%; height:100%; object-fit:cover; display:block; }
+    .content { padding:12px 14px 16px; }
+    .title { margin:0 0 6px; font-size:18px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; font-size:14px; color:#333; }
+    .chip { background:#eef3ff; border:1px solid #dde6ff; padding:6px 8px; border-radius:8px; }
+    .meta { margin:8px 0; color:#333; }
+    .btn { appearance:none; border:none; background:var(--primary); color:#fff; font-weight:bold; padding:10px 12px; border-radius:8px; cursor:pointer; }
+    .btn:disabled { opacity:.6; cursor:not-allowed; }
+  </style>
+</head>
+<body>
+
+<h1>Upcoming Matches</h1>
+<div class="list" id="matchesList">Loading…</div>
+
+<script>
+/* ===================== YOUR CONFIG ===================== */
+const BACKENDLESS_APP_ID   = "08943DAB-53CC-453A-9E41-957BDCF9E5AC";
+const BACKENDLESS_REST_KEY = "F5CBFC47-EC05-47A8-8C6A-09BB1E4A71B8";
+const BL_BASE = `https://api.backendless.com/${BACKENDLESS_APP_ID}/${BACKENDLESS_REST_KEY}`;
+
+const ZENUPI_API_KEY = "e2b882b7b9301793aaf8b681df3cc505"; // ⚠️ For testing only (don’t expose in production)
+const MERCHANT_UPI   = "yourupi@upi";                       // <-- put your UPI ID here
+const SUCCESS_URL    = location.origin + "/join-success.html"; // change path if your success file is elsewhere
+/* ======================================================= */
+
+const MATCHES_URL = `${BL_BASE}/data/Matches`;
+
+function fmtDate(dt) {
+  try {
+    const d = new Date(dt);
+    if (isNaN(d.getTime())) return "N/A";
+    return d.toLocaleString([], { year:"numeric", month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" });
+  } catch { return "N/A"; }
+}
+
+function render(matches) {
+  const box = document.getElementById("matchesList");
+  if (!matches || !matches.length) {
+    box.textContent = "No matches yet.";
+    return;
+  }
+  box.innerHTML = "";
+  matches.forEach(m => {
+    const card = document.createElement("div");
+    card.className = "card";
+    const fee = (m.entryFee ?? m.EntryFee ?? "0").toString();
+    card.innerHTML = `
+      <div class="imgwrap">
+        <img src="${m.ImageURL || ""}" alt="Match Image" onerror="this.style.display='none'">
+      </div>
+      <div class="content">
+        <h2 class="title">${m.MatchName || "N/A"}</h2>
+        <div class="row">
+          <div class="chip">ID: ${m.ID || "N/A"}</div>
+          <div class="chip">Type: ${m.MatchType || "N/A"}</div>
+          <div class="chip">Mode: ${m.Mode || "N/A"}</div>
+          <div class="chip">Map: ${m.Map || "N/A"}</div>
+        </div>
+        <p class="meta">Participants: ${m.Participants ?? 0}</p>
+        <p class="meta">Prize Pool: ${m.PrizePool || "N/A"}</p>
+        <p class="meta">Entry Fee: ₹${fee}</p>
+        <p class="meta">Date: ${m.DateTime ? fmtDate(m.DateTime) : "N/A"}</p>
+        <button class="btn" onclick="joinMatch('${m.objectId}', '${fee}', '${m.MatchName || ""}')">Join Now</button>
+      </div>
+    `;
+    box.appendChild(card);
+  });
+}
+
+// Create ZenUPI payment & redirect
+async function joinMatch(objectId, amount, matchName) {
+  try {
+    if (!amount || amount === "0") return alert("Entry fee is missing.");
+    const btn = event.target; btn.disabled = true; btn.textContent = "Starting payment…";
+
+    const payload = {
+      amount: amount.toString(),
+      upi_id: MERCHANT_UPI,
+      note: `Entry Fee • ${matchName || "Match"}`,
+      // send match objectId so the success page knows which match to update
+      redirect_url: `${SUCCESS_URL}?match=${encodeURIComponent(objectId)}`
+    };
+
+    const res = await fetch("https://upi.zenupi.online/api/payment", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + ZENUPI_API_KEY
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (data && data.payment_url) {
+      window.location.href = data.payment_url;
+    } else {
+      console.error("ZenUPI response:", data);
+      alert("Could not create payment. Try again.");
+      btn.disabled = false; btn.textContent = "Join Now";
+    }
+  } catch (e) {
+    console.error(e);
+    alert("Payment error.");
+    event.target.disabled = false; event.target.textContent = "Join Now";
+  }
+}
+
+// Load matches (latest first)
+fetch(`${MATCHES_URL}?sortBy=created%20desc`)
+  .then(r => r.json())
+  .then(render)
+  .catch(() => { document.getElementById("matchesList").textContent = "Error loading matches."; });
+</script>
+</body>
+</html>
