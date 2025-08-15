@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Owner Panel</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #1e1e2f; color: white; text-align: center; margin: 0; }
+    h1 { color: #00ff9d; position: relative; }
+
+    input, button { padding: 10px; margin: 5px; border-radius: 5px; border: none; }
+    input { width: 250px; }
+    button { cursor: pointer; background: #00ff9d; color: black; font-weight: bold; }
+    button:hover { background: #00cc7a; }
+
+    .match, .user { background: #2a2a40; padding: 10px; margin: 10px auto; width: 90%; border-radius: 8px; }
+    img { max-width: 100%; border-radius: 5px; }
+
+    /* Hamburger menu */
+    .hamburger {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 24px;
+      height: 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      cursor: pointer;
+      z-index: 1001;
+    }
+
+    .hamburger div {
+      height: 3px;
+      background: #00ff9d;
+      border-radius: 2px;
+    }
+
+    .menu {
+      position: fixed;
+      top: 0;
+      left: -220px;
+      width: 220px;
+      height: 100%;
+      background: #2a2a40;
+      box-shadow: 2px 0 6px rgba(0,0,0,0.5);
+      padding-top: 60px;
+      transition: left 0.3s ease;
+      z-index: 9998;
+      text-align: left;
+    }
+
+    .menu.active { left: 0; }
+
+    .menu a {
+      display: block;
+      padding: 12px 16px;
+      color: #00ff9d;
+      text-decoration: none;
+      font-weight: bold;
+      border-bottom: 1px solid #444;
+    }
+
+    .menu a:hover { background: #1a1a2a; }
+  </style>
+</head>
+<body>
+
+<h1>
+  Owner Panel
+  <div class="hamburger" onclick="toggleMenu()" style="display:none;" id="hamburger">
+    <div></div>
+    <div></div>
+    <div></div>
+  </div>
+</h1>
+
+<!-- Side Menu -->
+<div class="menu" id="menu">
+  <a href="#" onclick="showSection('form-section')">Add Match</a>
+  <a href="#" onclick="showSection('users-section')">Users</a>
+  <a href="withdrawal.html">Withdrawal</a>
+  <a href="https://gdfesport.infinityfree.me/admin_login.php">Deposit</a>
+</div>
+
+<!-- Login Section -->
+<div id="login-section">
+  <input type="password" id="ownerPass" placeholder="Enter Owner Password">
+  <button onclick="login()">Login</button>
+</div>
+
+<!-- Add Match Section -->
+<div id="form-section" style="display:none;">
+  <h2>Add Match</h2>
+  <input id="MatchName" placeholder="Match Name"><br>
+  <input id="ID" placeholder="Match ID"><br>
+  <input id="MatchType" placeholder="Match Type"><br>
+  <input id="Mode" placeholder="Mode"><br>
+  <input type="number" id="Participants" placeholder="Participants"><br>
+  <input id="PrizePool" placeholder="Prize Pool"><br>
+  <input id="entryFee" placeholder="Entry Fee"><br>
+  <input id="ImageURL" placeholder="Image URL"><br>
+  <input type="datetime-local" id="dateTime"><br>
+  <button onclick="addMatch()">Add Match</button>
+
+  <h2>Existing Matches</h2>
+  <div id="matchesList"></div>
+</div>
+
+<!-- Users Section -->
+<div id="users-section" style="display:none;">
+  <h2>Users</h2>
+  <div id="usersList">Loading users…</div>
+</div>
+
+<script>
+const APP_ID = "08943DAB-53CC-453A-9E41-957BDCF9E5AC";
+const API_KEY = "F5CBFC47-EC05-47A8-8C6A-09BB1E4A71B8";
+const MATCH_URL = `https://api.backendless.com/${APP_ID}/${API_KEY}/data/Matches`;
+
+// Login
+function login(){
+  const pass = document.getElementById("ownerPass").value;
+  if(pass === "GARENAISBEST"){
+    document.getElementById("login-section").style.display = "none";
+    document.getElementById("form-section").style.display = "block";
+    document.getElementById("hamburger").style.display = "flex";
+    fetchMatches();
+  } else {
+    alert("Wrong Password!");
+  }
+}
+
+// Hamburger toggle
+function toggleMenu() {
+  document.getElementById('menu').classList.toggle('active');
+}
+
+// Show section
+function showSection(id){
+  document.getElementById('form-section').style.display = 'none';
+  document.getElementById('users-section').style.display = 'none';
+  if(id) {
+    document.getElementById(id).style.display = 'block';
+    if(id === 'users-section') fetchUsers();
+  }
+  toggleMenu();
+}
+
+// Add Match
+function addMatch(){
+  const dateValue = document.getElementById("dateTime").value;
+  const match = {
+    MatchName: document.getElementById("MatchName").value,
+    ID: document.getElementById("ID").value,
+    MatchType: document.getElementById("MatchType").value,
+    Mode: document.getElementById("Mode").value,
+    Participants: parseInt(document.getElementById("Participants").value),
+    PrizePool: document.getElementById("PrizePool").value,
+    EntryFee: parseInt(document.getElementById("entryFee").value),
+    ImageURL: document.getElementById("ImageURL").value,
+    DateTime: dateValue ? new Date(dateValue).toISOString() : null
+  };
+
+  fetch(MATCH_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(match)
+  }).then(r => r.json())
+    .then(() => { alert("Match Added!"); fetchMatches(); })
+    .catch(err => alert("Error adding match"));
+}
+
+// Fetch Matches
+function fetchMatches(){
+  fetch(MATCH_URL)
+    .then(r => r.json())
+    .then(matches => {
+      const container = document.getElementById("matchesList");
+      container.innerHTML = "";
+      matches.forEach(m => {
+        const formattedDate = m.DateTime ? new Date(m.DateTime).toLocaleString() : "N/A";
+        container.innerHTML += `
+          <div class="match">
+            <h3>${m.MatchName || "N/A"}</h3>
+            <img src="${m.ImageURL || ""}" alt="Match Image">
+            <p>ID: ${m.ID || "N/A"}</p>
+            <p>Type: ${m.MatchType || "N/A"}</p>
+            <p>Mode: ${m.Mode || "N/A"}</p>
+            <p>Participants: ${m.Participants || 0}</p>
+            <p>Prize Pool: ${m.PrizePool || "N/A"}</p>
+            <p>Entry Fee: ${m.EntryFee ?? ""}</p>
+            <p>Date: ${formattedDate}</p>
+            <button onclick="deleteMatch('${m.objectId}')">Delete</button>
+          </div>
+        `;
+      });
+    });
+}
+
+// Delete Match
+function deleteMatch(id){
+  fetch(`${MATCH_URL}/${id}`, { method: "DELETE" })
+    .then(() => { alert("Match Deleted"); fetchMatches(); })
+    .catch(() => alert("Error deleting match"));
+}
+
+// Fetch Users from PHP/MySQL
+function fetchUsers() {
+  fetch('get_users.php')
+    .then(r => r.json())
+    .then(users => {
+      const container = document.getElementById('usersList');
+      container.innerHTML = '';
+      users.forEach(u => {
+        container.innerHTML += `
+          <div class="match">
+            <p>Username: ${u.username}</p>
+            <p>Email: ${u.email}</p>
+            <p>Mobile: ${u.mobile}</p>
+            <p>Wallet: ${u.wallet}</p>
+            <button onclick="updateWallet(${u.id})">Update Wallet</button>
+          </div>
+        `;
+      });
+    })
+    .catch(err => {
+      document.getElementById('usersList').innerHTML = 'Error loading users';
+      console.error(err);
+    });
+}
+
+// Update Wallet
+function updateWallet(userId) {
+  const amount = prompt("Enter coins to add:");
+  if(amount) {
+    fetch('update_wallet.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `id=${userId}&coins=${amount}`
+    }).then(() => fetchUsers());
+  }
+}
+</script>
+
+</body>
+</html>
